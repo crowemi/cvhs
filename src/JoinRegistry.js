@@ -1,4 +1,8 @@
-import React from 'react'
+import React from 'react';
+require('dotenv').config();
+
+const API_HOST = process.env.REACT_APP_API_HOST;
+console.log(`Target api: ${API_HOST}`);
 
 class JoinRegistry extends React.Component {
 
@@ -11,7 +15,7 @@ class JoinRegistry extends React.Component {
     }
 
     componentDidMount() {
-        fetch("http://localhost:3001/metrics/")
+        fetch(`${API_HOST}metrics/`)
             .then(res => res.json()).then(res => { this.setState({ registryCount: res.registryCount }) })
     }
 
@@ -35,7 +39,7 @@ class JoinRegistry extends React.Component {
                 'Content-Type': 'application/json'
             },
         }
-        fetch("http://localhost:3001/registry/", options).then(
+        fetch(`${API_HOST}registry/`, options).then(
             (res) => {
                 console.log(res.json());
                 var current_state = this.state;
