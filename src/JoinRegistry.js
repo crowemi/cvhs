@@ -7,17 +7,20 @@ class JoinRegistry extends React.Component {
         super(props);
         this.handleSubmit = this.handleSubmit.bind(this);
         this.state = {
-            registryCount: 0
+            hasRegistryCount: false,
+            registryCount: 0,
+            isSubmit: false
         }
     }
 
     componentDidMount() {
         console.debug("Enter componentDidMount.")
-        fetch("https://cvhs-api.onrender.com/metrics/")
+
+        fetch("http://localhost:8080/metrics/")
             .then(res => res.json())
             .then(res => {
                 console.debug(res);
-                this.setState({ registryCount: res.registryCount })
+                this.setState({ hasRegistryCount: true, registryCount: res.metrics.registryCount })
             }).catch((error) => { console.error(error) })
         console.debug("Exit componentDidMount.")
     }
@@ -42,15 +45,49 @@ class JoinRegistry extends React.Component {
                 'Content-Type': 'application/json'
             },
         }
-        fetch("https://cvhs-api.onrender.com/registry/", options).then(
-            (res) => {
-                console.log(res.json());
-                var current_state = this.state;
-                current_state.registryCount = this.state.registryCount + 1;
-                this.setState(current_state);
-            }
-        ).catch(() => { console.log("Error") })
 
+        var st = this.state;
+        st.isSubmit = true;
+        this.setState(st);
+
+        fetch("http://localhost:8080/registry/", options).then(
+            res => res.json()).then(res => {
+                console.log(res)
+                if (res.code === 200) {
+                    var current_state = this.state;
+                    current_state.registryCount = this.state.registryCount + 1;
+                    current_state.isSubmit = false;
+                    this.setState(current_state);
+                } else {
+                    console.log(res.message);
+                }
+            })
+            .catch(() => {
+                console.log("Error")
+            })
+
+    }
+    counter() {
+        if (this.state.hasRegistryCount === true) {
+            return <span className="badge rounded-pill text-bg-primary">{this.state.registryCount}</span>
+        } else {
+            return <div className="spinner-border spinner-border-sm text-primary" role="status"></div>
+        }
+    }
+
+    submitButton() {
+        if (this.state.isSubmit === true) {
+            return (
+                <button className="btn btn-primary" type="submit" disabled>
+                    <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    Processing...
+                </button>
+            )
+        } else {
+            return (
+                <button className="btn btn-primary" type="submit">Submit</button>
+            )
+        }
     }
 
     render() {
@@ -64,7 +101,7 @@ class JoinRegistry extends React.Component {
                         <div className="col-6">
                             <div className="d-flex flex-column-reverse">
                                 <div className="p-2"></div>
-                                <div className="p-2"><div className="float-end"><span className="badge rounded-pill text-bg-primary">{this.state.registryCount}</span> classmates registered</div></div>
+                                <div className="p-2"><div className="float-end">{this.counter()} classmates registered</div></div>
                                 <div className="p-2"></div>
                             </div>
                         </div>
@@ -76,13 +113,16 @@ class JoinRegistry extends React.Component {
                         <input name="firstName" type="text" className="form-control" placeholder="First Name" />
                     </div>
                     <div className="input-group mb-3">
-                        <input name="lastName" type="text" className="form-control" placeholder="Last (Maiden) Name" />
+                        <div className="col-12">
+                            <input name="lastName" type="text" className="form-control" placeholder="Last (Maiden) Name" />
+                        </div>
+                        <small><i className="bi-info-circle"></i>register using your maiden name, as its listed in the yearbook.</small>
                     </div>
                     <div className="input-group mb-3">
                         <span className="input-group-text" id="basic-addon1">@</span>
                         <input name="emailAddress" type="text" className="form-control" placeholder="Email Adress" />
                     </div>
-                    <button className="btn btn-primary" type="submit">Submit</button>
+                    {this.submitButton()}
                 </form >
             </ div >
         );
