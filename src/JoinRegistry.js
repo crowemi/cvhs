@@ -16,7 +16,7 @@ class JoinRegistry extends React.Component {
     componentDidMount() {
         console.debug("Enter componentDidMount.")
 
-        fetch("http://localhost:8080/metrics/")
+        fetch("https://cvhs-api.onrender.com/metrics/")
             .then(res => res.json())
             .then(res => {
                 console.debug(res);
@@ -50,7 +50,7 @@ class JoinRegistry extends React.Component {
         st.isSubmit = true;
         this.setState(st);
 
-        fetch("http://localhost:8080/registry/", options).then(
+        fetch("https://cvhs-api.onrender.com/registry/", options).then(
             res => res.json()).then(res => {
                 console.log(res)
                 if (res.code === 200) {
