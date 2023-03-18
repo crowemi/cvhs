@@ -1,28 +1,77 @@
 import React from 'react';
-
+import { Modal } from 'bootstrap';
 
 class JoinRegistry extends React.Component {
 
     constructor(props) {
         super(props);
         this.handleSubmit = this.handleSubmit.bind(this);
+        // TODO: check cache/cookie for previous submission
         this.state = {
             hasRegistryCount: false,
             registryCount: 0,
-            isSubmit: false
+            showForm: true,
+            isSubmit: false,
+            showModal: false,
+            modalMessage: null,
+            modalHeading: null,
+            modal: null
         }
     }
 
     componentDidMount() {
         console.debug("Enter componentDidMount.")
+        // config modal
+        var modal = new Modal('#modal', { backdrop: true })
+        var st = this.state;
+        st.modal = modal;
+        this.setState(st);
 
         fetch("https://cvhs-api.onrender.com/metrics/")
             .then(res => res.json())
             .then(res => {
-                console.debug(res);
-                this.setState({ hasRegistryCount: true, registryCount: res.metrics.registryCount })
-            }).catch((error) => { console.error(error) })
+                if (res.code === 200) {
+                    var st = this.state;
+                    st.hasRegistryCount = true;
+                    st.registryCount = res.metrics.registryCount;
+                    this.setState(st);
+                } else {
+                    this.clientError();
+                }
+            }).catch((error) => {
+                console.error(error);
+                this.clientError();
+            })
+        // get previous registration
+        var id = localStorage.getItem("id");
+        if (id) {
+            this.getRegistry(id);
+        }
         console.debug("Exit componentDidMount.")
+    }
+
+    getRegistry(id) {
+        var options = {
+            method: "GET",
+            // mode: "cors",
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            },
+        }
+
+        fetch(`https://cvhs-api.onrender.com/registry/${id}`, options)
+            .then(res => res.json())
+            .then(res => {
+                console.log(res);
+                console.log(res.code);
+            })
+            .catch(() => {
+                var st = this.state
+                st.isSubmit = false;
+                this.setState(st);
+                this.clientError();
+            })
     }
 
     handleSubmit(event) {
@@ -50,23 +99,55 @@ class JoinRegistry extends React.Component {
         st.isSubmit = true;
         this.setState(st);
 
-        fetch("https://cvhs-api.onrender.com/registry/", options).then(
-            res => res.json()).then(res => {
-                console.log(res)
-                if (res.code === 200) {
-                    var current_state = this.state;
-                    current_state.registryCount = this.state.registryCount + 1;
-                    current_state.isSubmit = false;
-                    this.setState(current_state);
+        fetch("https://cvhs-api.onrender.com/registry/", options)
+            .then(res => res.json())
+            .then(res => {
+                console.log(res);
+                console.log(res.code);
+                var st = this.state;
+                if ([200, 202].includes(res.code)) {
+                    st.isSubmit = false;
+                    if ([200].includes(res.code)) {
+                        st.showForm = false;
+                        // TODO: log to db: console.log(res.message);
+                        st.registryCount = this.state.registryCount + 1;
+                        // TODO: store local cache
+                        localStorage.setItem("id", res.payload.id);
+                        // remove form
+                    }
+                    if ([202].includes(res.code)) {
+                        // TODO: log to db: console.log('202'); console.log(res.payload.message);
+                        st.modalMessage = res.payload.message;
+                        st.showModal = true;
+                        this.showModal();
+                    }
+                    console.log(st);
+                    this.setState(st);
                 } else {
-                    console.log(res.message);
+                    console.log("error");
+                    // TODO: log to db console.log(res.message);
+                    st.isSubmit = false;
+                    this.setState(st);
+                    this.clientError();
                 }
             })
             .catch(() => {
-                console.log("Error")
+                var st = this.state
+                st.isSubmit = false;
+                this.setState(st);
+                this.clientError();
             })
 
     }
+    clientError() {
+        var st = this.state;
+        st.showModal = true;
+        st.modalHeading = "Unexpected Error";
+        st.modalMessage = "Uh oh! Something isn't right. Please try again later.";
+        this.setState(st);
+        this.showModal();
+    }
+
     counter() {
         if (this.state.hasRegistryCount === true) {
             return <span className="badge rounded-pill text-bg-primary">{this.state.registryCount}</span>
@@ -90,6 +171,60 @@ class JoinRegistry extends React.Component {
         }
     }
 
+    showModal() {
+        if (this.state.showModal === true) {
+            this.state.modal.toggle();
+        }
+    }
+
+    internalModal() {
+        return (
+            <div id="modal" className="modal" tabIndex="-1">
+                <div className="modal-dialog">
+                    <div className="modal-content">
+                        <div className="modal-header">
+                            <h5 className="modal-title">{this.state.modalHeading}</h5>
+                            <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div className="modal-body">
+                            <p>{this.state.modalMessage}</p>
+                        </div>
+                        <div className="modal-footer">
+                            <button type="button" className="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )
+    }
+
+    form() {
+        if (this.state.showForm === true) {
+            return (
+                <form onSubmit={this.handleSubmit} className="row g-3">
+                    <div className="input-group mb-3">
+                        <input name="firstName" type="text" className="form-control" placeholder="First Name" />
+                    </div>
+                    <div className="input-group mb-3">
+                        <div className="col-12">
+                            <input name="lastName" type="text" className="form-control" placeholder="Last (Maiden) Name" />
+                        </div>
+                        <small><i className="bi-info-circle"></i>register using your maiden name, as its listed in the yearbook.</small>
+                    </div>
+                    <div className="input-group mb-3">
+                        <span className="input-group-text" id="basic-addon1">@</span>
+                        <input name="emailAddress" type="text" className="form-control" placeholder="Email Adress" />
+                    </div>
+                    {this.submitButton()}
+                </form >
+            )
+        } else {
+            return (
+                <h1>thank you for registering.</h1>
+            )
+        }
+    }
+
     render() {
         return (
             <div className="container registry-form-container" >
@@ -107,26 +242,12 @@ class JoinRegistry extends React.Component {
                         </div>
                     </div>
                 </div>
-
-                <form onSubmit={this.handleSubmit} className="row g-3">
-                    <div className="input-group mb-3">
-                        <input name="firstName" type="text" className="form-control" placeholder="First Name" />
-                    </div>
-                    <div className="input-group mb-3">
-                        <div className="col-12">
-                            <input name="lastName" type="text" className="form-control" placeholder="Last (Maiden) Name" />
-                        </div>
-                        <small><i className="bi-info-circle"></i>register using your maiden name, as its listed in the yearbook.</small>
-                    </div>
-                    <div className="input-group mb-3">
-                        <span className="input-group-text" id="basic-addon1">@</span>
-                        <input name="emailAddress" type="text" className="form-control" placeholder="Email Adress" />
-                    </div>
-                    {this.submitButton()}
-                </form >
+                {this.form()}
+                {this.internalModal()}
             </ div >
         );
     };
 }
+
 
 export default JoinRegistry
