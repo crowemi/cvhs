@@ -46,6 +46,8 @@ class JoinRegistry extends React.Component {
                 console.error(error);
             })
 
+        this.setState(st);
+
         fetch(`${api_uri}metrics/`)
             .then(res => res.json())
             .then(res => {
@@ -67,7 +69,6 @@ class JoinRegistry extends React.Component {
             this.getRegistry(id);
         }
 
-        this.setState(st);
         console.debug("Exit componentDidMount.")
     }
 
