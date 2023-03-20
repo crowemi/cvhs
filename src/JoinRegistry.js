@@ -1,6 +1,8 @@
 import React from 'react';
 import { Modal } from 'bootstrap';
 
+const api_uri = 'http://localhost:8080/'
+
 class JoinRegistry extends React.Component {
 
     constructor(props) {
@@ -15,8 +17,17 @@ class JoinRegistry extends React.Component {
             showModal: false,
             modalMessage: null,
             modalHeading: null,
-            modal: null
+            modal: null,
+            registry: {
+                firstName: null,
+                email: null
+            },
+            clientIp: null
         }
+    }
+
+    clientLog() {
+
     }
 
     componentDidMount() {
@@ -25,9 +36,17 @@ class JoinRegistry extends React.Component {
         var modal = new Modal('#modal', { backdrop: true })
         var st = this.state;
         st.modal = modal;
-        this.setState(st);
 
-        fetch("https://cvhs-api.onrender.com/metrics/")
+        fetch(`https://api.ipify.org/?format=json`)
+            .then(res => res.json())
+            .then(res => {
+                st.clientIp = res.ip
+            }).catch((error) => {
+                // LOG error
+                console.error(error);
+            })
+
+        fetch(`${api_uri}metrics/`)
             .then(res => res.json())
             .then(res => {
                 if (res.code === 200) {
@@ -47,6 +66,8 @@ class JoinRegistry extends React.Component {
         if (id) {
             this.getRegistry(id);
         }
+
+        this.setState(st);
         console.debug("Exit componentDidMount.")
     }
 
@@ -59,15 +80,18 @@ class JoinRegistry extends React.Component {
                 'Content-Type': 'application/json'
             },
         }
+        var st = this.state
 
-        fetch(`https://cvhs-api.onrender.com/registry/${id}`, options)
+        fetch(`${api_uri}registry/${id}`, options)
             .then(res => res.json())
             .then(res => {
                 console.log(res);
                 console.log(res.code);
+                st.showForm = false;
+                st.registry = res.payload.registry;
+                this.setState(st);
             })
             .catch(() => {
-                var st = this.state
                 st.isSubmit = false;
                 this.setState(st);
                 this.clientError();
@@ -82,7 +106,8 @@ class JoinRegistry extends React.Component {
         var form = {
             firstName: formData.get("firstName"),
             lastName: formData.get("lastName"),
-            email: formData.get("emailAddress")
+            email: formData.get("emailAddress"),
+            ip: this.state.clientIp
         }
         console.log(JSON.stringify(form));
         var options = {
@@ -99,7 +124,7 @@ class JoinRegistry extends React.Component {
         st.isSubmit = true;
         this.setState(st);
 
-        fetch("https://cvhs-api.onrender.com/registry/", options)
+        fetch(`${api_uri}registry/`, options)
             .then(res => res.json())
             .then(res => {
                 console.log(res);
@@ -111,6 +136,9 @@ class JoinRegistry extends React.Component {
                         st.showForm = false;
                         // TODO: log to db: console.log(res.message);
                         st.registryCount = this.state.registryCount + 1;
+
+                        st.registry.firstName = form.firstName;
+                        st.registry.email = form.email;
                         // TODO: store local cache
                         localStorage.setItem("id", res.payload.id);
                         // remove form
@@ -209,7 +237,7 @@ class JoinRegistry extends React.Component {
                         <div className="col-12">
                             <input name="lastName" type="text" className="form-control" placeholder="Last (Maiden) Name" />
                         </div>
-                        <small><i className="bi-info-circle"></i>register using your maiden name, as its listed in the yearbook.</small>
+                        <small><i className="fa-solid fa-circle-info"></i> register using your maiden name, as its listed in the yearbook.</small>
                     </div>
                     <div className="input-group mb-3">
                         <span className="input-group-text" id="basic-addon1">@</span>
@@ -220,7 +248,10 @@ class JoinRegistry extends React.Component {
             )
         } else {
             return (
-                <h1>thank you for registering.</h1>
+                <div className="alert alert-success" role="alert">
+                    <h4 className="alert-heading"><i className="fa-solid fa-circle-check"></i> Thank you for registering, <b>{this.state.registry.firstName}</b>!</h4>
+                    <p>Be watching your email for future correspondence about upcoming events and next steps.</p>
+                </div>
             )
         }
     }
