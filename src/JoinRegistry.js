@@ -1,7 +1,7 @@
 import React from 'react';
 import { Modal } from 'bootstrap';
 
-const api_uri = 'https://cvhs-api.onrender.com'; // 'http://localhost:8080/'
+const api_uri = 'https://cvhs-api.onrender.com/'; // 'http://localhost:8080/'
 
 class JoinRegistry extends React.Component {
 
