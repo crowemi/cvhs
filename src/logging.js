@@ -10,7 +10,6 @@ export const log_level = {
 const LOG_SOURCE = "client";
 
 export function clientLog(log, severity, ip) {
-    console.log(ip);
     var payload = {}
     switch (severity) {
         case (log_level.DEBUG):
