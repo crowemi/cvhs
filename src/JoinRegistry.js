@@ -1,14 +1,13 @@
 import React from 'react';
 import { Modal } from 'bootstrap';
-
-const api_uri = 'https://cvhs-api.onrender.com/'; // 'http://localhost:8080/'
+import { log_level, clientLog } from './logging';
+import { API_URI } from '.';
 
 class JoinRegistry extends React.Component {
 
     constructor(props) {
         super(props);
         this.handleSubmit = this.handleSubmit.bind(this);
-        // TODO: check cache/cookie for previous submission
         this.state = {
             hasRegistryCount: false,
             registryCount: 0,
@@ -26,46 +25,48 @@ class JoinRegistry extends React.Component {
         }
     }
 
-    clientLog() {
-
+    async getIp() {
+        await fetch(`https://api.ipify.org/?format=json`)
+            .then(res => res.json())
+            .then(res => {
+                var st = this.state;
+                st.clientIp = res.ip;
+                this.setState(st);
+            }).catch((error) => {
+                clientLog(error, log_level.ERROR)
+            });
     }
 
-    componentDidMount() {
-        console.debug("Enter componentDidMount.")
+    async componentDidMount() {
+        clientLog("Enter componentDidMount.", log_level.DEBUG)
+        await this.getIp();
         // config modal
         var modal = new Modal('#modal', { backdrop: true })
         var st = this.state;
         st.modal = modal;
-
-        fetch(`https://api.ipify.org/?format=json`)
-            .then(res => res.json())
-            .then(res => {
-                st.clientIp = res.ip
-            }).catch((error) => {
-                // LOG error
-                console.error(error);
-            })
-
         this.setState(st);
 
-        fetch(`${api_uri}metrics/`)
+        fetch(`${API_URI}metrics/`)
             .then(res => res.json())
             .then(res => {
                 if (res.code === 200) {
+                    clientLog("metrics/ successful.", log_level.INFO, this.state.clientIp)
                     var st = this.state;
                     st.hasRegistryCount = true;
                     st.registryCount = res.metrics.registryCount;
                     this.setState(st);
                 } else {
                     this.clientError();
+                    clientLog("metrics/ endpoint returned error code.", log_level.WARNING, this.state.clientIp)
                 }
             }).catch((error) => {
-                console.error(error);
                 this.clientError();
+                clientLog(error, log_level.ERROR, this.state.clientIp)
             })
         // get previous registration
         var id = localStorage.getItem("id");
         if (id) {
+            clientLog(`${id} found in local storage.`, log_level.INFO, this.state.clientIp)
             this.getRegistry(id);
         }
 
@@ -83,24 +84,25 @@ class JoinRegistry extends React.Component {
         }
         var st = this.state
 
-        fetch(`${api_uri}registry/${id}`, options)
+        fetch(`${API_URI}registry/${id}`, options)
             .then(res => res.json())
             .then(res => {
-                console.log(res);
-                console.log(res.code);
+                clientLog(`${id} successfully returned registry.`, log_level.INFO, this.state.clientIp)
                 st.showForm = false;
                 st.registry = res.payload.registry;
                 this.setState(st);
             })
-            .catch(() => {
+            .catch((error) => {
                 st.isSubmit = false;
                 this.setState(st);
                 this.clientError();
+                clientLog(error, log_level.ERROR, this.state.clientIp)
             })
     }
 
     handleSubmit(event) {
         event.preventDefault();
+        clientLog(`JoinRegistry form submit initiated.`, log_level.INFO, this.state.clientIp)
         const formElem = document.querySelector('form');
         const formData = new FormData(formElem);
 
@@ -110,7 +112,8 @@ class JoinRegistry extends React.Component {
             email: formData.get("emailAddress"),
             ip: this.state.clientIp
         }
-        console.log(JSON.stringify(form));
+
+        clientLog(`Form values: ${JSON.stringify(form)}`, log_level.INFO, this.state.clientIp)
         var options = {
             method: "POST",
             // mode: "cors",
@@ -125,42 +128,37 @@ class JoinRegistry extends React.Component {
         st.isSubmit = true;
         this.setState(st);
 
-        fetch(`${api_uri}registry/`, options)
+        fetch(`${API_URI}registry/`, options)
             .then(res => res.json())
             .then(res => {
-                console.log(res);
-                console.log(res.code);
                 var st = this.state;
                 if ([200, 202].includes(res.code)) {
+                    clientLog(`Successfully submitted registry.`, log_level.INFO, this.state.clientIp);
+                    clientLog(`${res.payload.message}`, log_level.INFO, this.state.clientIp);
                     st.isSubmit = false;
                     if ([200].includes(res.code)) {
                         st.showForm = false;
-                        // TODO: log to db: console.log(res.message);
                         st.registryCount = this.state.registryCount + 1;
-
                         st.registry.firstName = form.firstName;
                         st.registry.email = form.email;
-                        // TODO: store local cache
                         localStorage.setItem("id", res.payload.id);
-                        // remove form
+                        clientLog(`ID: ${res.payload.id} stored in local cache.`, log_level.INFO, this.state.clientIp)
                     }
                     if ([202].includes(res.code)) {
-                        // TODO: log to db: console.log('202'); console.log(res.payload.message);
                         st.modalMessage = res.payload.message;
                         st.showModal = true;
                         this.showModal();
                     }
-                    console.log(st);
                     this.setState(st);
                 } else {
-                    console.log("error");
-                    // TODO: log to db console.log(res.message);
+                    clientLog(`${res.payload.message}`, log_level.WARNING, this.state.clientIp);
                     st.isSubmit = false;
                     this.setState(st);
                     this.clientError();
                 }
             })
-            .catch(() => {
+            .catch((error) => {
+                clientLog(error, log_level.ERROR, this.state.clientIp);
                 var st = this.state
                 st.isSubmit = false;
                 this.setState(st);

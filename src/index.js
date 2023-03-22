@@ -9,6 +9,8 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap/dist/js/bootstrap.bundle.min";
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
+export const API_URI = 'http://localhost:8080/'; //'https://cvhs-api.onrender.com/'; 'http://localhost:8080/';
+
 root.render(
   <React.StrictMode>
     <App />
